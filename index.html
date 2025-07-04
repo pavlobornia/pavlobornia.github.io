@@ -3,98 +3,111 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Форма погодження з умовами</title>
+  <title>Підпис договору оренди</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
+      margin: 0;
       font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
+      background-color: #f2f2f2;
     }
-    .form-container {
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 600px;
-    }
-    h2 {
+    header {
+      background-color: #1e88e5;
+      color: white;
+      padding: 1rem;
       text-align: center;
+    }
+    .logo {
+      max-height: 40px;
+      vertical-align: middle;
+    }
+    .form-wrapper {
+      max-width: 500px;
+      background-color: white;
+      margin: 1rem auto;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     label {
       display: block;
-      margin-top: 15px;
+      margin: 1rem 0 0.5rem;
       font-weight: bold;
     }
-    input, textarea {
+    input[type="text"], input[type="tel"], textarea {
       width: 100%;
-      padding: 10px;
-      margin-top: 5px;
+      padding: 0.75rem;
+      font-size: 1rem;
       border: 1px solid #ccc;
       border-radius: 6px;
-      font-size: 14px;
     }
-    textarea[readonly] {
-      background: #f9f9f9;
+    textarea {
+      height: 120px;
+      resize: vertical;
     }
-    .checkbox-container {
-      margin-top: 15px;
+    .scroll-box {
+      max-height: 180px;
+      overflow-y: scroll;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      background: #fafafa;
+      border-radius: 6px;
     }
-    .signature-container {
-      margin-top: 20px;
+    .checkbox {
+      margin-top: 1rem;
+    }
+    .signature-block {
+      margin-top: 1rem;
     }
     canvas {
-      border: 1px solid #ccc;
       width: 100%;
       height: 200px;
-      touch-action: none;
+      border: 1px solid #ccc;
       border-radius: 6px;
+      touch-action: none;
     }
     button {
-      margin-top: 20px;
+      margin-top: 1.5rem;
       width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      background: #007bff;
+      padding: 0.75rem;
+      background-color: #1e88e5;
       color: white;
+      font-size: 1rem;
       border: none;
       border-radius: 6px;
       cursor: pointer;
     }
     button:hover {
-      background: #0056b3;
-    }
-    .note {
-      font-size: 12px;
-      color: #777;
-      margin-top: 5px;
+      background-color: #1565c0;
     }
   </style>
 </head>
 <body>
-  <div class="form-container">
-    <h2>Форма погодження з умовами</h2>
+  <header>
+    <img src="https://i.imgur.com/jV3L0aM.png" alt="Sirka Sport" class="logo">
+  </header>
+  <div class="form-wrapper">
     <form id="consentForm">
-      <label>Прізвище та Ім'я
-        <input type="text" id="fullName" required>
-      </label>
-      <label>Телефон
-        <input type="tel" id="phone" required>
-      </label>
-      <label>Правила оренди
-        <textarea readonly rows="8">
-Орендар зобов'язується дотримуватись усіх правил техніки безпеки, носити рятувальний жилет, не керувати гідроциклом у стані алкогольного чи наркотичного сп'яніння та ознайомитись з умовами договору перед початком оренди. Повна версія правил доступна на місці.
-        </textarea>
-      </label>
-      <div class="checkbox-container">
+      <label for="fullName">Прізвище та Ім'я</label>
+      <input type="text" id="fullName" required>
+
+      <label for="phone">Телефон</label>
+      <input type="tel" id="phone" required>
+
+      <label>Правила оренди</label>
+      <div class="scroll-box">
+        <p>Орендар зобов'язується дотримуватись усіх правил техніки безпеки, носити рятувальний жилет, не керувати гідроциклом у стані алкогольного чи наркотичного сп'яніння, а також ознайомитись з умовами договору перед початком оренди. Повна версія правил доступна на місці.</p>
+      </div>
+
+      <div class="checkbox">
         <label><input type="checkbox" id="agree" required> Я погоджуюсь з умовами договору</label>
       </div>
 
-      <div class="signature-container">
-        <label>Підпис</label>
+      <div class="signature-block">
+        <label for="signaturePad">Підпис:</label>
         <canvas id="signaturePad"></canvas>
         <button type="button" onclick="clearSignature()">Очистити підпис</button>
       </div>
@@ -107,19 +120,32 @@
     const canvas = document.getElementById('signaturePad');
     const ctx = canvas.getContext('2d');
     let drawing = false;
+    let rect = canvas.getBoundingClientRect();
+
+    function getXY(e) {
+      if (e.touches) {
+        return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+      }
+      return [e.offsetX, e.offsetY];
+    }
 
     canvas.addEventListener('pointerdown', (e) => {
       drawing = true;
+      rect = canvas.getBoundingClientRect();
+      const [x, y] = getXY(e);
       ctx.beginPath();
-      ctx.moveTo(e.offsetX, e.offsetY);
+      ctx.moveTo(x, y);
     });
+
     canvas.addEventListener('pointermove', (e) => {
-      if (drawing) {
-        ctx.lineTo(e.offsetX, e.offsetY);
-        ctx.stroke();
-      }
+      if (!drawing) return;
+      const [x, y] = getXY(e);
+      ctx.lineTo(x, y);
+      ctx.stroke();
     });
+
     canvas.addEventListener('pointerup', () => drawing = false);
+    canvas.addEventListener('pointerleave', () => drawing = false);
 
     function clearSignature() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
