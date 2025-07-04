@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Форма погодження з умовами</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    label, textarea, input { display: block; margin-bottom: 15px; width: 100%; }
+    canvas { border: 1px solid #ccc; touch-action: none; width: 100%; height: 150px; }
+    button { padding: 10px 20px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>Форма погодження з умовами</h2>
+  <form id="consentForm">
+    <label>Прізвище та Ім'я:<input type="text" id="fullName" required></label>
+    <label>Телефон:<input type="tel" id="phone" required></label>
+
+    <label>Правила (демо):
+      <textarea readonly rows="5">Я погоджуюсь з умовами договору оренди гідроциклів, викладеними нижче...</textarea>
+    </label>
+
+    <label><input type="checkbox" id="agree" required> Я погоджуюсь з умовами договору</label>
+
+    <label>Підпис:</label>
+    <canvas id="signaturePad"></canvas>
+    <button type="button" onclick="clearSignature()">Очистити підпис</button>
+
+    <button type="submit">Надіслати</button>
+  </form>
+
+  <script>
+    const canvas = document.getElementById('signaturePad');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    canvas.addEventListener('pointerdown', (e) => {
+      drawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (drawing) {
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+      }
+    });
+    canvas.addEventListener('pointerup', () => drawing = false);
+
+    function clearSignature() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    document.getElementById('consentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('fullName').value;
+      const phone = document.getElementById('phone').value;
+      const agree = document.getElementById('agree').checked;
+      if (!agree) return alert("Потрібно погодитись з умовами!");
+
+      const signatureDataUrl = canvas.toDataURL("image/png");
+      const {{ jsPDF }} = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(14);
+      doc.text("Форма погодження", 20, 20);
+      doc.text(`Ім'я: ${name}`, 20, 35);
+      doc.text(`Телефон: ${phone}`, 20, 45);
+      doc.text("Я погоджуюсь з умовами договору.", 20, 60);
+
+      const imgProps = doc.getImageProperties(signatureDataUrl);
+      const pdfWidth = 80;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      doc.addImage(signatureDataUrl, "PNG", 20, 70, pdfWidth, pdfHeight);
+
+      const pdfBlob = doc.output("blob");
+      const formData = new FormData();
+      formData.append("file", pdfBlob, "signed_form.pdf");
+
+      // Надсилання на email через Formspree (або інший сервіс, налаштуй endpoint)
+      fetch("https://formspree.io/f/mnqegjre", {
+        method: "POST",
+        body: formData,
+      })
+      .then(res => {
+        if (res.ok) {
+          alert("Файл надіслано успішно!");
+        } else {
+          alert("Помилка при надсиланні");
+        }
+      });
+    });
+  </script>
+</body>
+</html>
